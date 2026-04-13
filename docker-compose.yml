@@ -1,0 +1,11 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - TORCH_FORCE_WEIGHTS_ONLY_LOAD=0
+    volumes:
+      - .:/app
+    restart: unless-stopped
