@@ -92,8 +92,14 @@ def validasi_foto():
     boxes = results[0].boxes
     class_names = results[0].names
     
+    CONFIDENCE_THRESHOLD = 0.7
+
     da_si_found = False
     logo_found = False
+    tie_meragukan = False
+    logo_meragukan = False
+    tie_score = None
+    logo_score = None
     logo_x_center = -1
     
     detected_objects = []
@@ -101,22 +107,34 @@ def validasi_foto():
     for box in boxes:
         cls_id = int(box.cls[0])
         name = class_names[cls_id].lower()
+        confidence = float(box.conf[0])
         detected_objects.append(name)
         
         if 'tie' in name:
+            if tie_score is None or confidence > tie_score:
+                tie_score = round(confidence, 4)
             da_si_found = True
         if 'logo' in name:
+            if logo_score is None or confidence > logo_score:
+                logo_score = round(confidence, 4)
+                x1, _, x2, _ = box.xyxy[0].tolist()
+                logo_x_center = (x1 + x2) / 2
             logo_found = True
-            x1, _, x2, _ = box.xyxy[0].tolist()
-            logo_x_center = (x1 + x2) / 2
+
+    if da_si_found and tie_score is not None and tie_score < CONFIDENCE_THRESHOLD:
+        tie_meragukan = True
+    if logo_found and logo_score is not None and logo_score < CONFIDENCE_THRESHOLD:
+        logo_meragukan = True
             
     total_objects = len(detected_objects)
     response_data = {
         "status": "success",
-        "message": "Foto sesuai",
+        "message": "Foto sesuai ketentuan",
         "data": {
             "total_objects": total_objects,
-            "detected_objects": detected_objects
+            "detected_objects": detected_objects,
+            "tie_score": tie_score,
+            "logo_score": logo_score,           
         }
     }
             
@@ -124,10 +142,25 @@ def validasi_foto():
         response_data["status"] = "error"
         response_data["message"] = "Dasi tidak ditemukan"
         return jsonify(response_data), 400
+
+    if gender.upper() == 'L' and tie_meragukan:
+        response_data["status"] = "error"
+        response_data["message"] = f"Deteksi dasi meragukan (confidence: {tie_score})"
+        return jsonify(response_data), 400
+
+    if gender.upper() == 'P' and da_si_found:
+        response_data["status"] = "error"
+        response_data["message"] = "Wanita tidak mengenakan dasi"
+        return jsonify(response_data), 400
         
     if not logo_found:
         response_data["status"] = "error"
         response_data["message"] = "Tidak mengenakan almamater"
+        return jsonify(response_data), 400
+
+    if logo_meragukan:
+        response_data["status"] = "error"
+        response_data["message"] = f"Deteksi logo meragukan (confidence: {logo_score})"
         return jsonify(response_data), 400
         
     img_h, img_w = img.shape[:2]
