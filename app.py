@@ -140,33 +140,33 @@ def validasi_foto():
             
     if gender.upper() == 'L' and not da_si_found:
         response_data["status"] = "error"
-        response_data["message"] = "Dasi tidak ditemukan"
+        response_data["message"] = "Harap, mengenakan dasi yang sesuai."
         return jsonify(response_data), 400
 
     if gender.upper() == 'L' and tie_meragukan:
         response_data["status"] = "error"
-        response_data["message"] = f"Deteksi dasi meragukan (confidence: {tie_score})"
+        response_data["message"] = f"Dasi Anda tampak meragukan. Bisa dicoba dengan mengunggah foto yang lebih jelas."
         return jsonify(response_data), 400
 
     if gender.upper() == 'P' and da_si_found:
         response_data["status"] = "error"
-        response_data["message"] = "Wanita tidak mengenakan dasi"
+        response_data["message"] = "Wanita tidak mengenakan dasi."
         return jsonify(response_data), 400
         
     if not logo_found:
         response_data["status"] = "error"
-        response_data["message"] = "Tidak mengenakan almamater"
+        response_data["message"] = "Tidak mengenakan almamater yang sesuai."
         return jsonify(response_data), 400
 
     if logo_meragukan:
         response_data["status"] = "error"
-        response_data["message"] = f"Deteksi logo meragukan (confidence: {logo_score})"
+        response_data["message"] = f"Logo Anda tampak meragukan. Bisa dicoba dengan mengunggah foto yang lebih jelas."
         return jsonify(response_data), 400
         
     img_h, img_w = img.shape[:2]
     if logo_x_center < img_w / 2:
         response_data["status"] = "error"
-        response_data["message"] = "Foto anda mirror"
+        response_data["message"] = "Foto anda mirror."
         return jsonify(response_data), 400
 
     return jsonify(response_data), 200
