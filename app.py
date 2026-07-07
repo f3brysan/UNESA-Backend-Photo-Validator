@@ -50,7 +50,7 @@ def check_background_blue(img_bgr):
     mask = cv2.inRange(top_bg, lower_blue, upper_blue)
     blue_ratio = np.sum(mask > 0) / mask.size
     
-    return blue_ratio > 0.3
+    return blue_ratio
 
 @app.route('/api/v1/validasi_foto', methods=['POST'])
 def validasi_foto():
@@ -79,8 +79,11 @@ def validasi_foto():
         return jsonify({"status": "error", "message": "Gagal membaca foto format base64"}), 400
 
     # Tahap 1: Pengecekan background
-    if not check_background_blue(img):
-        return jsonify({"status": "error", "message": "Background tidak sesuai"}), 400
+    BACKGROUND_BLUE_THRESHOLD = 0.3
+    blue_ratio = check_background_blue(img)
+    errors = []
+    if blue_ratio <= BACKGROUND_BLUE_THRESHOLD:
+        errors.append("Background tidak sesuai")
         
     # Pemuatan model (lazy)
     model_instance = get_model()
@@ -134,39 +137,35 @@ def validasi_foto():
             "total_objects": total_objects,
             "detected_objects": detected_objects,
             "tie_score": tie_score,
-            "logo_score": logo_score,           
+            "logo_score": logo_score,
+            "blue_ratio": round(float(blue_ratio), 4)
         }
     }
             
     if gender.upper() == 'L' and not da_si_found:
-        response_data["status"] = "error"
-        response_data["message"] = "Harap, mengenakan dasi yang sesuai."
-        return jsonify(response_data), 400
+        errors.append("Harap, mengenakan dasi yang sesuai.")
 
     if gender.upper() == 'L' and tie_meragukan:
-        response_data["status"] = "error"
-        response_data["message"] = f"Dasi Anda tampak meragukan. Bisa dicoba dengan mengunggah foto yang lebih jelas."
-        return jsonify(response_data), 400
+        errors.append("Dasi Anda tampak meragukan. Bisa dicoba dengan mengunggah foto yang lebih jelas.")
 
     if gender.upper() == 'P' and da_si_found:
-        response_data["status"] = "error"
-        response_data["message"] = "Wanita tidak mengenakan dasi."
-        return jsonify(response_data), 400
+        errors.append("Wanita tidak mengenakan dasi.")
         
     if not logo_found:
-        response_data["status"] = "error"
-        response_data["message"] = "Tidak mengenakan almamater yang sesuai."
-        return jsonify(response_data), 400
+        errors.append("Tidak mengenakan almamater yang sesuai.")
 
     if logo_meragukan:
-        response_data["status"] = "error"
-        response_data["message"] = f"Logo Anda tampak meragukan. Bisa dicoba dengan mengunggah foto yang lebih jelas."
-        return jsonify(response_data), 400
+        errors.append("Logo Anda tampak meragukan. Bisa dicoba dengan mengunggah foto yang lebih jelas.")
         
     img_h, img_w = img.shape[:2]
-    if logo_x_center < img_w / 2:
+    if logo_found and logo_x_center < img_w / 2:
+        errors.append("Foto anda mirror.")
+
+    if errors:
         response_data["status"] = "error"
-        response_data["message"] = "Foto anda mirror."
+        response_data["message"] = errors[0] if len(errors) == 1 else "Terdapat beberapa kesalahan pada foto."
+        if len(errors) > 1:
+            response_data["errors"] = errors
         return jsonify(response_data), 400
 
     return jsonify(response_data), 200
